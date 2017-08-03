@@ -427,7 +427,8 @@ type CloudConfig struct {
 
 		//AWS has a hard limit of 500 security groups. For large clusters creating a security group for each ELB
 		//can cause the max number of security groups to be reached. If this is set instead of creating a new
-		//Security group for each ELB this security group will be used instead.
+		//Security group for each ELB this security group will be used instead.  This security group's rules
+		//will not be modified.
 		ElbSecurityGroup string
 
 		//During the instantiation of an new AWS cloud provider, the detected region
@@ -2804,7 +2805,8 @@ func (c *Cloud) EnsureLoadBalancer(clusterName string, apiService *v1.Service, n
 		return nil, fmt.Errorf("[BUG] ELB can't have empty list of Security Groups to be assigned, this is a Kubernetes bug, please report")
 	}
 
-	{
+	// Don't update the shared security group's rules (would otherwise cause flapping, as this function is per-service)
+	if securityGroupIDs[0] != c.config.ElbSecurityGroup {
 		ec2SourceRanges := []*ec2.IpRange{}
 		for _, sourceRange := range sourceRanges.StringSlice() {
 			ec2SourceRanges = append(ec2SourceRanges, &ec2.IpRange{CidrIp: aws.String(sourceRange)})
